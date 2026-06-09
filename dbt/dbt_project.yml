@@ -1,0 +1,31 @@
+name: 'blueprint_analytics'
+version: '1.0.0'
+config-version: 2
+
+# This setting points dbt at the profile in profiles.yml (kept in this same
+# directory so the project is self-contained — run dbt with `--profiles-dir .`).
+profile: 'blueprint'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Sensible defaults for the two-layer structure this exercise expects.
+# Staging models are lightweight views over the raw tables; marts are
+# materialized tables. Candidates may override per-model with config blocks.
+models:
+  blueprint_analytics:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts

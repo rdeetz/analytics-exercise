@@ -1,0 +1,81 @@
+# Blueprint analytics work simulation — full local stack.
+#
+#   docker compose up --build
+#
+# Starts Postgres (auto-migrated + seeded on first boot), the NestJS API, and the
+# Vite/React client. To start over with a fresh database: `docker compose down -v`.
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-blueprint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blueprint}
+      POSTGRES_DB: ${POSTGRES_DB:-blueprint}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # These run in lexical order the first time the data volume is empty:
+      # schema first, then seed data.
+      - ./db/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./db/seeds/seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blueprint} -d ${POSTGRES_DB:-blueprint}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    # Pull in ANTHROPIC_API_KEY (and any overrides) from .env if it exists.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # In-network connection details always point at the db service.
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-blueprint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blueprint}
+      POSTGRES_DB: ${POSTGRES_DB:-blueprint}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+  client:
+    build: ./client
+    restart: unless-stopped
+    environment:
+      # The Vite dev server proxies /api to the API service (see client/vite.config.ts).
+      VITE_API_TARGET: http://api:3000
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5173 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+volumes:
+  pgdata:

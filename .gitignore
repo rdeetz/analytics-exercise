@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+
+# Build output
+api/dist/
+client/dist/
+
+# OS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.gstack/
+
+# Claude Code local settings (per-machine, not for the candidate repo)
+.claude/settings.local.json
+
+EVALUATION.md

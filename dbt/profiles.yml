@@ -1,0 +1,21 @@
+# Pre-wired connection to the local Postgres that `docker compose up` starts.
+#
+# dbt runs from YOUR machine (there is no dbt container), so it connects to the
+# database on localhost:5432 — the port docker-compose publishes. The host is
+# read from DBT_HOST and defaults to localhost; everything else reuses the same
+# POSTGRES_* values as the rest of the stack (defaults match .env.example).
+#
+# Test it with:  dbt debug --profiles-dir .
+blueprint:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      port: 5432
+      user: "{{ env_var('POSTGRES_USER', 'blueprint') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'blueprint') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'blueprint') }}"
+      schema: analytics
+      threads: 4
+      connect_timeout: 10
