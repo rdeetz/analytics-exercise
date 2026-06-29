@@ -1,0 +1,34 @@
+version: 2
+
+sources:
+  - name: blueprint
+    description: >
+      Raw operational tables loaded into Postgres by the seed. Modeled as an
+      explicit dbt source so lineage is complete and source-level expectations
+      live in one place. Staging models select from here via `source()`.
+    schema: public
+    tables:
+      - name: organizations
+        description: One row per organization (customer) using Blueprint.
+        columns:
+          - name: id
+            description: Primary key.
+            tests: [unique, not_null]
+      - name: clinicians
+        description: One row per clinician; each belongs to an organization.
+        columns:
+          - name: id
+            description: Primary key.
+            tests: [unique, not_null]
+      - name: sessions
+        description: One row per therapy session captured by Blueprint.
+        columns:
+          - name: id
+            description: Primary key.
+            tests: [unique, not_null]
+      - name: notes
+        description: One row per AI-generated clinical note (one per completed session).
+        columns:
+          - name: id
+            description: Primary key.
+            tests: [unique, not_null]

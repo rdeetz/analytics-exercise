@@ -1,0 +1,125 @@
+version: 2
+
+models:
+  - name: stg_organizations
+    description: "Cleaned 1:1 view of `organizations`. Grain: one row per organization."
+    columns:
+      - name: organization_id
+        description: Primary key.
+        tests: [unique, not_null]
+      - name: organization_name
+        description: Display name. Neutral; not a signal of org health.
+      - name: plan
+        description: Subscription tier.
+        tests:
+          - accepted_values:
+              values: ['starter', 'growth', 'enterprise']
+      - name: organization_status
+        description: Lifecycle status.
+        tests:
+          - accepted_values:
+              values: ['active', 'churned', 'suspended']
+      - name: clinician_seats
+        description: Contracted clinician seats.
+      - name: signed_up_at
+        description: When the org was created (renamed from created_at).
+        tests: [not_null]
+
+  - name: stg_clinicians
+    description: "Cleaned 1:1 view of `clinicians` with activation flags. Grain: one row per clinician."
+    columns:
+      - name: clinician_id
+        description: Primary key.
+        tests: [unique, not_null]
+      - name: organization_id
+        description: Owning organization.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_organizations')
+              field: organization_id
+      - name: clinician_status
+        description: Lifecycle status.
+        tests:
+          - accepted_values:
+              values: ['active', 'inactive', 'deactivated']
+      - name: signed_up_at
+        description: When the clinician record was created (renamed from created_at).
+      - name: activated_at
+        description: When the clinician first activated; NULL if they never did.
+      - name: is_activated
+        description: True when activated_at is present.
+      - name: has_activation_conflict
+        description: >
+          DATA QUALITY flag — status is 'active' but activated_at is NULL
+          (signed up, marked active, never actually activated). ~30 rows.
+
+  - name: stg_sessions
+    description: "Cleaned 1:1 view of `sessions` with duration-quality flags. Grain: one row per session."
+    columns:
+      - name: session_id
+        description: Primary key.
+        tests: [unique, not_null]
+      - name: organization_id
+        description: Org the session belongs to.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_organizations')
+              field: organization_id
+      - name: clinician_id
+        description: Clinician who ran the session.
+        tests:
+          - relationships:
+              to: ref('stg_clinicians')
+              field: clinician_id
+      - name: session_status
+        description: Session outcome.
+        tests:
+          - accepted_values:
+              values: ['completed', 'abandoned', 'processing']
+      - name: started_at
+        description: Session start timestamp.
+        tests: [not_null]
+      - name: ended_at
+        description: Session end timestamp; NULL for abandoned/processing (and some anomalous completed rows).
+      - name: duration_seconds
+        description: Raw session length in seconds; NULL when not captured.
+      - name: is_completed
+        description: True when session_status = 'completed'.
+      - name: has_valid_duration
+        description: True when duration_seconds is present and positive.
+      - name: has_completion_anomaly
+        description: >
+          DATA QUALITY flag — session is 'completed' but missing ended_at or
+          duration_seconds. ~98 rows.
+      - name: duration_minutes
+        description: Session length in minutes; populated only when has_valid_duration.
+
+  - name: stg_notes
+    description: "Cleaned 1:1 view of `notes` with generation-quality flags. Grain: one row per note."
+    columns:
+      - name: note_id
+        description: Primary key.
+        tests: [unique, not_null]
+      - name: session_id
+        description: Session the note was generated from.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_sessions')
+              field: session_id
+      - name: generation_status
+        description: AI note generation outcome.
+        tests:
+          - accepted_values:
+              values: ['success', 'failed', 'pending']
+      - name: word_count
+        description: Note length in words; NULL when generation did not succeed (and some anomalous success rows).
+      - name: clinician_edited
+        description: Whether a clinician edited the note (coalesced to false).
+      - name: is_successful
+        description: True when generation_status = 'success'.
+      - name: has_word_count_anomaly
+        description: >
+          DATA QUALITY flag — generation 'success' but word_count is NULL. ~10 rows.

@@ -12,7 +12,7 @@ blueprint:
     dev:
       type: postgres
       host: "{{ env_var('DBT_HOST', 'localhost') }}"
-      port: 5432
+      port: 5433
       user: "{{ env_var('POSTGRES_USER', 'blueprint') }}"
       password: "{{ env_var('POSTGRES_PASSWORD', 'blueprint') }}"
       dbname: "{{ env_var('POSTGRES_DB', 'blueprint') }}"
